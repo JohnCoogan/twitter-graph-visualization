@@ -1,10 +1,15 @@
 <!DOCTYPE html>
 <meta charset="utf-8">
 <script src="http://d3js.org/d3.v2.min.js?2.9.3"></script>
-<script type="text/javascript" src="http://code.jquery.com/jquery-1.6.2.min.js"></script>
-<script type="text/javascript" src="/static/jquery.tipsy.js"></script>
-<link href="/static/tipsy.css" rel="stylesheet" type="text/css" />
 <style>
+
+body {
+  font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+  margin: 10px;
+  position: absolute;
+  width: 960px;
+  font-size: 14px;
+}
 
 .link {
   stroke: #ccc;
@@ -12,26 +17,56 @@
 
 .node text {
   pointer-events: none;
-  font: 14px sans-serif;
 }
 
 .nodetext {
-  font: 24px sans-serif;
+  font-size: 24px;
 }
 
 .title {
-  font: 34px sans-serif;  
+  font-size: 34px;
+}
+
+.sizeby {
+  font-size: 20px;
+}
+
+.sizenote {
+  font-size: 16px;
+}
+
+form {
+  position: absolute;
+  left: 10px;
+  top: 370px;
+  font-size: 20px;
+}
+
+.highlight {
+  stroke-width: 3px !important;
+  stroke: #000 !important;
 }
 
 </style>
-<body>
+  <body>
+  <form>
+  <label><input type="radio" name="mode" value="eigen" checked> Eigenvector</label>
+  <label><input type="radio" name="mode" value="degree"> Degree</label>
+  </form>
 <script>
 
 var w = 1000,
     h = 650,
     r = 50,
-    metric = "eigen_cent", // degree_cent
-    scale = 1 // 15 
+    l = 275,
+    svg,
+    force,
+    link,
+    node,
+    clip,
+    graph,
+    metric = "eigen_cent",
+    scale = 1
 
 var color = d3.scale.category20();
 
@@ -39,8 +74,25 @@ function showNodeDetails() {
   return function(d, i) {
     svg.selectAll(".nodetext").remove();
     labels = [];
-    labels.push("Name: " + d['name'], "Twitter: @" + d['screen_name'], "Following: " + d['friends_count'], "Followers: " + d['followers_count'], "Degree: " + d['degree_cent'].toFixed(4), "Eigenvector: " + d['eigen_cent'].toFixed(4))
+    labels.push("" + d['name'], "@" + d['screen_name'], "Following: " + d['friends_count'], "Followers: " + d['followers_count'], "Eigenvector: " + d['eigen_cent'].toFixed(4), "Degree: " + d['degree_cent'].toFixed(4))
     setDetailLabels(labels);
+    d3.selectAll("svg").selectAll("g").selectAll("circle")
+      .transition()
+        .duration(100)
+        .attr("fill-opacity", 0.5);
+    d3.selectAll("svg").selectAll("g").selectAll("image")
+      .transition()
+        .duration(100)
+        .attr("style", "opacity: .5;");
+    d3.select(this).selectAll("image")
+      .transition()
+        .duration(100)
+        .attr("style", "opacity: 1;");
+    d3.select(this).selectAll("circle")
+      .transition()
+        .duration(100)
+        .attr("class", "circle highlight")
+        .attr("fill-opacity", 1);
   }
 }
 
@@ -50,18 +102,26 @@ function setDetailLabels(labels) {
     .attr("class", "nodetext")
     .text(function() { return this.__data__; })
     .attr("x", 10)
-    .attr("y", function(d, i){ return (this.getBBox().height * 1.2) * (i+2.2)});  
+    .attr("y", function(d, i){ return (this.getBBox().height * 1.2) * (i+3.2)});  
 }
 
 function resetDetailLabels() {
   svg.selectAll(".nodetext").remove();
-  labels = ["Name: ", "Twitter: ", "Following: ", "Followers: ", "Degree: ", "Eigenvector: "];
+  labels = ["Name: ", "Twitter: ", "Following: ", "Followers: ", "Eigenvector: ", "Degree: "];
   setDetailLabels(labels);
 }
 
 function removeNodeDetails() {
   return function(d, i) {
     resetDetailLabels();
+    d3.selectAll("svg").selectAll("g").selectAll("circle")
+      .transition()
+        .attr("fill-opacity", 1);
+    d3.selectAll("svg").selectAll("g").selectAll("image")
+      .transition()
+        .attr("style", "opacity: 1;");
+    d3.select(this).selectAll("circle")
+      .attr("class", "circle");
   }
 }
 
@@ -71,113 +131,213 @@ function followLink() {
   }
 }
 
-var svg = d3.select("body").append("svg")
-    .attr("width", w)
-    .attr("height", h)
-    .style("border", "3px solid #000");
+function sizeBy(metric, scale) {
+    d3.selectAll("svg").selectAll("g").selectAll("rect")
+      .transition()
+        .attr("x", function(d) { return Math.sqrt(d[metric] * scale) * -75; })
+        .attr("y", function(d) { return Math.sqrt(d[metric] * scale) * -75; })
+        .attr("rx", 75)
+        .attr("ry", 75)
+        .attr("width", function(d) { return Math.sqrt(d[metric] * scale) * 150; })
+        .attr("height", function(d) { return Math.sqrt(d[metric] * scale) * 150; });
 
-svg.append("svg:text")
-  .attr("class", "title")
-  .text("Twitter Graph")
-  .attr("x", 10)
-  .attr("y", 40)
+    d3.selectAll("svg").selectAll("g").selectAll("circle")
+      .transition()
+        .attr("r", function(d) { return Math.sqrt(d[metric] * scale) * 90; });
 
-resetDetailLabels();
+    d3.selectAll("svg").selectAll("g").selectAll("image")
+      .transition()
+        .attr("x", function(d) { return Math.sqrt(d[metric] * scale) * -75; })
+        .attr("y", function(d) { return Math.sqrt(d[metric] * scale) * -75; })
+        .attr("width", function(d) { return Math.sqrt(d[metric] * scale) * 150; })
+        .attr("height", function(d) { return Math.sqrt(d[metric] * scale) * 150; });
+}
 
-var force = d3.layout.force()
-    .gravity(0.05)
-    .linkDistance(250)
-    .charge(-200)
-    .friction(0)
-    .linkStrength(1)
-    .theta(0.8)
-    .size([w, h]);
+d3.selectAll("input").on("change", function change() {
+  if (this.value === "eigen") sizeBy("eigen_cent", 1);
+  else sizeBy("degree_cent", 15);
+});
 
-d3.json("/static/smallgraph.json", function(json) {
-  force
-      .nodes(json.nodes)
-      .links(json.links)
-      .start();
+svg = d3.select("body").append("svg")
+  .attr("width", w)
+  .attr("height", h)
+  .style("border", "3px solid #000");
 
-  var link = svg.selectAll(".link")
-      .data(json.links)
-    .enter().append("line")
-      .attr("class", "link");
+graph = svg.append("g")
+  .attr("transform", "translate(275,10)");
 
-  var node = svg.selectAll(".node")
-      .data(json.nodes)
-    .enter().append("g")
-      .attr("class", "node")
-      .on("mouseover", showNodeDetails())
-      .on("mouseout", removeNodeDetails())
-      .on("click", followLink())
-      .call(force.drag);
+function drawGraph() {
+  force = d3.layout.force()
+      .gravity(0.2)
+      .linkDistance(250)
+      .charge(-300)
+      .friction(0)
+      .size([w-l, h]);
 
-  var clip = node.append("defs").append("svg:clipPath")
-    .attr("id", "clip")
-    .append("svg:rect")
-    .attr("id", "clip-rect")
-    .attr("x", function(d) { return Math.sqrt(d[metric] * scale) * -75; })
-    .attr("y", function(d) { return Math.sqrt(d[metric] * scale) * -75; })
-    .attr("rx", 75)
-    .attr("ry", 75)
-    .attr("width", function(d) { return Math.sqrt(d[metric] * scale) * 150; })
-    .attr("height", function(d) { return Math.sqrt(d[metric] * scale) * 150; });
+  d3.json("/static/smallgraph.json", function(json) {
+    force
+        .nodes(json.nodes)
+        .links(json.links)
+        .start();
 
-  node.append("svg:circle")
-    .attr("r", function(d) { return Math.sqrt(d[metric] * scale) * 90; })
-    .style("fill", function(d) { return color(d.partition); })
-    .style("stroke", "#000")
-    .style("stroke-width", 1)
-    .attr("class","circle");
+    link = graph.selectAll(".link")
+        .data(json.links)
+      .enter().append("line")
+        .attr("class", "link");
 
-  node.append("image")
-    .attr("xlink:href", function(d) { return d.profile_image_url; })
-    .attr("x", function(d) { return Math.sqrt(d[metric] * scale) * -75; })
-    .attr("y", function(d) { return Math.sqrt(d[metric] * scale) * -75; })
-    .attr("width", function(d) { return Math.sqrt(d[metric] * scale) * 150; })
-    .attr("height", function(d) { return Math.sqrt(d[metric] * scale) * 150; })
-    .attr("clip-path", "url(#clip)");
+    node = graph.selectAll(".node")
+        .data(json.nodes)
+      .enter().append("g")
+        .attr("class", function(d) { return "node " + d['screen_name']; })
+        .on("mouseover", showNodeDetails())
+        .on("mouseout", removeNodeDetails())
+        .on("click", followLink())
+        .call(force.drag);
 
-  $('.node').tipsy({
-    gravity: 'n',
-    title: function() { return this.__data__.name; }
+    clip = node.append("defs").append("svg:clipPath")
+      .attr("id", function(d) { return "clip-" + d['screen_name']; })
+      .append("svg:rect")
+      .attr("id", "clip-rect")
+      .attr("x", function(d) { return Math.sqrt(d[metric] * scale) * -75; })
+      .attr("y", function(d) { return Math.sqrt(d[metric] * scale) * -75; })
+      .attr("rx", 75)
+      .attr("ry", 75)
+      .attr("width", function(d) { return Math.sqrt(d[metric] * scale) * 150; })
+      .attr("height", function(d) { return Math.sqrt(d[metric] * scale) * 150; });
+
+    node.append("svg:circle")
+      .attr("r", function(d) { return Math.sqrt(d[metric] * scale) * 90; })
+      .style("fill", function(d) { return color(d.partition); })
+      .style("stroke", "#000")
+      .style("stroke-width", 1)
+      .attr("class","circle");
+
+    node.append("image")
+      .attr("xlink:href", function(d) { return d.profile_image_url; })
+      .attr("x", function(d) { return Math.sqrt(d[metric] * scale) * -75; })
+      .attr("y", function(d) { return Math.sqrt(d[metric] * scale) * -75; })
+      .attr("width", function(d) { return Math.sqrt(d[metric] * scale) * 150; })
+      .attr("height", function(d) { return Math.sqrt(d[metric] * scale) * 150; })
+      .attr("clip-path", function(d) { return "url(#clip-" + d['screen_name'] + ")"; });
+
+  // For Static Graph, use this code.
+  // setTimeout(function() {
+  //       force.start();
+  //       for (var i = 100000; i > 0; --i) force.tick();
+  //       force.stop();
+
+    force.on("tick", function() {
+      link.attr("x1", function(d) { return Math.max(r, Math.min(w - l - r, d.source.x)); })
+          .attr("y1", function(d) { return Math.max(r, Math.min(h - r, d.source.y)); })
+          .attr("x2", function(d) { return Math.max(r, Math.min(w - l - r, d.target.x)); })
+          .attr("y2", function(d) { return Math.max(r, Math.min(h - r, d.target.y)); });
+
+      node.attr("transform", function(d) { 
+          return "translate("
+            + Math.max(r, Math.min(w - l - r, d.x)) 
+            + "," 
+            + Math.max(r, Math.min(h - r, d.y)) 
+            + ")";
+      });
+    });
+    // }, 10);
   });
+}
 
-// For Static Graph, use this code.
-// setTimeout(function() {
-//       force.start();
-//       for (var i = 100000; i > 0; --i) force.tick();
-//       force.stop();
+function redrawGraph() {
+  link.remove();
+  node.remove();
+  drawGraph();
+}
 
-  force.on("tick", function() {
-    link.attr("x1", function(d) { return d.source.x; })
-        .attr("y1", function(d) { return d.source.y; })
-        .attr("x2", function(d) { return d.target.x; })
-        .attr("y2", function(d) { return d.target.y; });
+function drawLegend() {
+  svg.append("svg:rect")
+    .attr("x", -20)
+    .attr("y", -20)
+    .attr("width", 275)
+    .attr("height", 320)
+    .attr("ry", 20)
+    .style("fill", "#ddd")
+    .style("stroke", "#000")
+    .style("stroke-width", 3);
 
-    node.attr("transform", function(d) { 
-        return "translate("
-          + d.x 
-          + "," 
-          + d.y 
-          + ")"; 
+  svg.append("svg:text")
+    .attr("class", "title")
+    .text("Twitter Graph")
+    .attr("x", 22)
+    .attr("y", 40);
+
+  svg.append("svg:text")
+    .attr("class", "title")
+    .text("Visualization")
+    .attr("x", 33)
+    .attr("y", 75);
+
+  svg.append("svg:rect")
+    .attr("x", -20)
+    .attr("y", 335)
+    .attr("width", 275)
+    .attr("height", 180)
+    .attr("ry", 20)
+    .style("fill", "#ddd")
+    .style("stroke", "#000")
+    .style("stroke-width", 3);
+
+  svg.append("svg:text")
+    .attr("class", "sizeby")
+    .text("Show size by centrality:")
+    .attr("x", 10)
+    .attr("y", 360);
+
+  svg.append("svg:text")
+    .attr("class", "sizenote")
+    .text("Eigenvector Centrality measures")
+    .attr("x", 10)
+    .attr("y", 430);
+
+  svg.append("svg:text")
+    .attr("class", "sizenote")
+    .text("my closest connections.")
+    .attr("x", 10)
+    .attr("y", 450);
+
+  svg.append("svg:text")
+    .attr("class", "sizenote")
+    .text("Degree Centrality measures")
+    .attr("x", 10)
+    .attr("y", 480);
+
+  svg.append("svg:text")
+    .attr("class", "sizenote")
+    .text("my most popular connections.")
+    .attr("x", 10)
+    .attr("y", 500);
+
+  svg.append("svg:rect")
+    .attr("x", -20)
+    .attr("y", 550)
+    .attr("width", 275)
+    .attr("height", 180)
+    .attr("ry", 20)
+    .style("fill", "#ddd")
+    .style("stroke", "#000")
+    .style("stroke-width", 3)
+    .on("click", function(){
+      redrawGraph();
     });
 
-    // link.attr("x1", function(d) { return Math.max(r+250, Math.min(w - r, d.source.x)); })
-    //     .attr("y1", function(d) { return Math.max(r, Math.min(h - r, d.source.y)); })
-    //     .attr("x2", function(d) { return Math.max(r+250, Math.min(w - r, d.target.x)); })
-    //     .attr("y2", function(d) { return Math.max(r, Math.min(h - r, d.target.y)); });
+  svg.append("svg:text")
+    .attr("class", "title")
+    .text("Click to Reset")
+    .attr("x", 17)
+    .attr("y", 615)
+    .on("click", function(){
+      redrawGraph();
+    });
+}
 
-    // node.attr("transform", function(d) { 
-    //     return "translate("
-    //       + Math.max(r+250, Math.min(w - r, d.x)) 
-    //       + "," 
-    //       + Math.max(r, Math.min(h - r, d.y)) 
-    //       + ")"; 
-    // });
-  });
-  // }, 10);
-});
+drawGraph();
+drawLegend();
+resetDetailLabels();
 
 </script>
