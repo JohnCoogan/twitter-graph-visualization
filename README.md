@@ -8,6 +8,19 @@ Files
 *	**twitter.py:** Scrape and clean twitter data.
 *	**analysis.py:** Read in Edge List and generate analysis and graph data.
 *	**vis folder:** Visualization Files.
+*	**oauth.json:** Contains personal config vars in a dictionary (not checked in)
+
+OAuth.json
+----------
+
+	{
+		"consumer_key" : "key",
+		"consumer_secret" : "secret",
+		"access_token" : "key",
+		"access_token_secret" : "secret",
+		"screen_name" : "name",
+		"user_id" : 12345678
+	}
 
 TODO:
 -----

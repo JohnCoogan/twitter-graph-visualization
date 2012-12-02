@@ -4,21 +4,16 @@ import tweepy, json, collections, functools, operator
 
 #  Set these global varaibles to customize your analysis.
 #  Register and create tokens at http://dev.twitter.com
-CONSUMER_KEY = 'u5R32gtNIRv7lXVTS3Trg'
-CONSUMER_SECRET = '568zVCqlFjQ7zsEqUNr6LP5BPxVg9Xqi6FaviEpQlfs'
-ACCESS_TOKEN = '30736937-vLSwnDl3r2pNFBl31NFti0PGY2N29Scl3aGntYiS4'
-ACCESS_SECRET = 'YfNKqe2rzcolehbz6HcysyuS5zluUOKz0h6q9uQ53M'
-SCREEN_NAME = 'johncoogan'
-USER_ID = 30736937
+configs = json.loads(open('oauth.json','r').read())
 
 # Create a twitter API connection w/ OAuth.
-auth = tweepy.OAuthHandler(CONSUMER_KEY, CONSUMER_SECRET)
-auth.set_access_token(ACCESS_TOKEN, ACCESS_SECRET)
+auth = tweepy.OAuthHandler(configs['consumer_key'], configs['consumer_secret'])
+auth.set_access_token(configs['access_token'], configs['access_token_secret'])
 api = tweepy.API(auth)
 
 def get_first_friends():
 	my_friends = []
-	friend_cursors = tweepy.Cursor(api.friends, id = SCREEN_NAME)
+	friend_cursors = tweepy.Cursor(api.friends, id = configs['screen_name'])
 	for friend_cursor in friend_cursors.items():
 		friend = {}
 		friend['screen_name'] = friend_cursor.screen_name
@@ -30,7 +25,7 @@ def get_first_friends():
 		friend['following'] = friend_cursor.following
 		my_friends.append(friend)
 
-	f = open('myfriends.json', 'w')
+	f = open('temp/myfriends.json', 'w')
 	f.seek(0)
 	friends_json = json.dumps(my_friends, sort_keys=True, indent=4)
 	f.write(friends_json)
@@ -44,7 +39,7 @@ def get_first_friends():
 
 # Weird that I wasn't getting rate limited on this...
 def get_second_friends():
-	f = open('myfriends.json','r').read()
+	f = open('temp/myfriends.json','r').read()
 	friends = json.loads(f)
 	friend_ids = [f['id'] for f in friends]
 	for friend_id in friend_ids:
@@ -54,7 +49,7 @@ def get_second_friends():
 			write_edgelist(friend_id, second_id)
 
 def write_edgelist(follower, followed):
-	f = open('coogan.edgelist', 'a')
+	f = open('temp/data.edgelist', 'a')
 	f.write("%s %s\n" % (follower, followed))
 	f.close()
 
@@ -72,7 +67,7 @@ def get_user_objects(user_list):
 		user_dict['following'] = full_user.following
 		top_users.append(user_dict)
 
-	f = open('topusers.json', 'w')
+	f = open('temp/topusers.json', 'w')
 	f.seek(0)
 	friends_json = json.dumps(top_users, sort_keys=True, indent=4)
 	f.write(friends_json)
@@ -80,7 +75,7 @@ def get_user_objects(user_list):
 	f.close()
 
 def load_graph():
-	mygraph = json.loads(open('small_graph.json', 'r').read())
+	mygraph = json.loads(open('temp/small_graph.json', 'r').read())
 	for node in mygraph['nodes']:
 		full_user = api.get_user(id=node['id'])
 		node['screen_name'] = full_user.screen_name
@@ -90,11 +85,13 @@ def load_graph():
 		node['profile_image_url'] = full_user.profile_image_url
 		node['following'] = full_user.following
 
-	f = open('fullgraph.json', 'w')
+	f = open('temp/fullgraph.json', 'w')
 	f.seek(0)
 	graph_json = json.dumps(mygraph, sort_keys=True, indent=4)
 	f.write(graph_json)
 	f.truncate()
 	f.close()
 
-load_graph()
+def print_configs():
+	for key in configs.keys():
+		print "%s: %s" % (key, configs[key])
