@@ -49,15 +49,13 @@ The statistics I focused on are as follows:
 	*	Calculate the eigendecomposition of the pairwise agjacency matrix of the graph.
 	*	Select the eigenvector associated with the largest eigenvalue.
 	*	Element *i* in the eigenvector gives the centrality of the i-th node.
-
-The eigenvector calculation is done by the power iteration method and has no guarantee of convergence.
+	*	**Note:** The eigenvector calculation is done by the power iteration method and has no guarantee of convergence.
 
 *	**Louvain Method** of community detection. The method is a greedy optimization method that attempts to optimize the "modularity" of a partition of the network. The optimization is performed in two steps. 
 	*	First, the method looks for "small" communities by optimizing modularity locally. 
 	*	Second, it aggregates nodes belonging to the same community and builds a new network whose nodes are the communities. 
 	*	These steps are repeated iteratively until a maximum of modularity is attained and a hierarchy of communities is produced. 
-
-Although the exact computational complexity of the method is not known, the method seems to run in time O(n log n) with most of the computational effort spent on the optimization at the first level. Exact modularity optimization is known to be NP-hard.
+	*	**Note:** Although the exact computational complexity of the method is not known, the method seems to run in time O(n log n) with most of the computational effort spent on the optimization at the first level. Exact modularity optimization is known to be NP-hard.
 
 ### Visualization
 I chose to use a force-directed graph because I think it strikes a nice balance between showing a lot statistics simultaneously while still being fairly simple to understand.
