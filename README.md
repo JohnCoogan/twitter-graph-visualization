@@ -7,7 +7,8 @@ Files
 -----
 *	**twitter.py:** Scrape and clean twitter data.
 *	**analysis.py:** Read in Edge List and generate analysis and graph data.
-*	**vis folder:** Visualization Files.
+*	**community.py:** A community detection module for NetworkX.
+*	**server.py:** A Flask App to host the visualization.
 *	**oauth.json:** Contains personal config vars in a dictionary (not checked in)
 
 OAuth.json

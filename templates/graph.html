@@ -4,7 +4,6 @@
 <script type="text/javascript" src="http://code.jquery.com/jquery-1.6.2.min.js"></script>
 <script type="text/javascript" src="/static/jquery.tipsy.js"></script>
 <link href="/static/tipsy.css" rel="stylesheet" type="text/css" />
-<link rel="shortcut icon" href="{{ url_for('static', filename='favicon.ico') }}">
 <style>
 
 .link {
@@ -16,55 +15,89 @@
   font: 14px sans-serif;
 }
 
+.nodetext {
+  font: 24px sans-serif;
+}
 
+.title {
+  font: 34px sans-serif;  
+}
 
 </style>
 <body>
 <script>
 
-var width = 1200,
-    height = 650,
-    r = 25,
+var w = 1000,
+    h = 650,
+    r = 50,
     metric = "eigen_cent", // degree_cent
     scale = 1 // 15 
 
 var color = d3.scale.category20();
 
+function showNodeDetails() {
+  return function(d, i) {
+    svg.selectAll(".nodetext").remove();
+    labels = [];
+    labels.push("Name: " + d['name'], "Twitter: @" + d['screen_name'], "Following: " + d['friends_count'], "Followers: " + d['followers_count'], "Degree: " + d['degree_cent'].toFixed(4), "Eigenvector: " + d['eigen_cent'].toFixed(4))
+    setDetailLabels(labels);
+  }
+}
+
+function setDetailLabels(labels) {
+  svg.selectAll(".nodetext").remove();
+  svg.selectAll("text.nodetext").data(labels).enter().append("svg:text")
+    .attr("class", "nodetext")
+    .text(function() { return this.__data__; })
+    .attr("x", 10)
+    .attr("y", function(d, i){ return (this.getBBox().height * 1.2) * (i+2.2)});  
+}
+
+function resetDetailLabels() {
+  svg.selectAll(".nodetext").remove();
+  labels = ["Name: ", "Twitter: ", "Following: ", "Followers: ", "Degree: ", "Eigenvector: "];
+  setDetailLabels(labels);
+}
+
+function removeNodeDetails() {
+  return function(d, i) {
+    resetDetailLabels();
+  }
+}
+
+function followLink() {
+  return function(d) {
+    window.open("http://twitter.com/"+d['screen_name'])
+  }
+}
+
 var svg = d3.select("body").append("svg")
-    .attr("width", width)
-    .attr("height", height)
+    .attr("width", w)
+    .attr("height", h)
     .style("border", "3px solid #000");
 
+svg.append("svg:text")
+  .attr("class", "title")
+  .text("Twitter Graph")
+  .attr("x", 10)
+  .attr("y", 40)
+
+resetDetailLabels();
+
 var force = d3.layout.force()
-    .gravity(0.06)
-    .distance(250)
+    .gravity(0.05)
+    .linkDistance(250)
     .charge(-200)
-    .size([width, height]);
+    .friction(0)
+    .linkStrength(1)
+    .theta(0.8)
+    .size([w, h]);
 
 d3.json("/static/smallgraph.json", function(json) {
   force
       .nodes(json.nodes)
       .links(json.links)
       .start();
-
-  // var stats = svg.append("svg:rect")
-  //   .attr("x", 10)
-  //   .attr("y", 10)
-  //   .attr("rx", 10)
-  //   .attr("ry", 10)
-  //   .attr("width", 200)
-  //   .attr("height", 400)
-  //   .attr("stroke", "#000")
-  //   .attr("stroke-width", 3)
-  //   .attr("fill", "#AAA");
-
-  // stats.append("text")
-  //   .attr("x", 20)
-  //   .attr("y", 20)
-  //   .attr("dy", "1em")
-  //   .style("text-anchor", "end")
-  //   .text("Stats");
-   
 
   var link = svg.selectAll(".link")
       .data(json.links)
@@ -75,6 +108,9 @@ d3.json("/static/smallgraph.json", function(json) {
       .data(json.nodes)
     .enter().append("g")
       .attr("class", "node")
+      .on("mouseover", showNodeDetails())
+      .on("mouseout", removeNodeDetails())
+      .on("click", followLink())
       .call(force.drag);
 
   var clip = node.append("defs").append("svg:clipPath")
@@ -96,17 +132,23 @@ d3.json("/static/smallgraph.json", function(json) {
     .attr("class","circle");
 
   node.append("image")
-      .attr("xlink:href", function(d) { return d.profile_image_url; })
-      .attr("x", function(d) { return Math.sqrt(d[metric] * scale) * -75; })
-      .attr("y", function(d) { return Math.sqrt(d[metric] * scale) * -75; })
-      .attr("width", function(d) { return Math.sqrt(d[metric] * scale) * 150; })
-      .attr("height", function(d) { return Math.sqrt(d[metric] * scale) * 150; })
-      .attr("clip-path", "url(#clip)");
+    .attr("xlink:href", function(d) { return d.profile_image_url; })
+    .attr("x", function(d) { return Math.sqrt(d[metric] * scale) * -75; })
+    .attr("y", function(d) { return Math.sqrt(d[metric] * scale) * -75; })
+    .attr("width", function(d) { return Math.sqrt(d[metric] * scale) * 150; })
+    .attr("height", function(d) { return Math.sqrt(d[metric] * scale) * 150; })
+    .attr("clip-path", "url(#clip)");
 
   $('.node').tipsy({
     gravity: 'n',
     title: function() { return this.__data__.name; }
   });
+
+// For Static Graph, use this code.
+// setTimeout(function() {
+//       force.start();
+//       for (var i = 100000; i > 0; --i) force.tick();
+//       force.stop();
 
   force.on("tick", function() {
     link.attr("x1", function(d) { return d.source.x; })
@@ -114,8 +156,28 @@ d3.json("/static/smallgraph.json", function(json) {
         .attr("x2", function(d) { return d.target.x; })
         .attr("y2", function(d) { return d.target.y; });
 
-    node.attr("transform", function(d) { return "translate(" + Math.max(r, Math.min(width - r, d.x)) + "," + Math.max(r, Math.min(height - r, d.y)) + ")"; });
+    node.attr("transform", function(d) { 
+        return "translate("
+          + d.x 
+          + "," 
+          + d.y 
+          + ")"; 
+    });
+
+    // link.attr("x1", function(d) { return Math.max(r+250, Math.min(w - r, d.source.x)); })
+    //     .attr("y1", function(d) { return Math.max(r, Math.min(h - r, d.source.y)); })
+    //     .attr("x2", function(d) { return Math.max(r+250, Math.min(w - r, d.target.x)); })
+    //     .attr("y2", function(d) { return Math.max(r, Math.min(h - r, d.target.y)); });
+
+    // node.attr("transform", function(d) { 
+    //     return "translate("
+    //       + Math.max(r+250, Math.min(w - r, d.x)) 
+    //       + "," 
+    //       + Math.max(r, Math.min(h - r, d.y)) 
+    //       + ")"; 
+    // });
   });
+  // }, 10);
 });
 
 </script>
