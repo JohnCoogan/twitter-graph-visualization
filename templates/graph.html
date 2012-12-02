@@ -5,7 +5,7 @@
 
 body {
   font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
-  margin: 10px;
+  margin: 0;
   position: absolute;
   width: 960px;
   font-size: 14px;
@@ -35,11 +35,24 @@ body {
   font-size: 16px;
 }
 
+.rankingtext {
+  font-size: 16px;
+}
+.rankingtitle {
+  font-size: 28px;
+}
+.rankingnum {
+  font-size: 16px;
+}
+.clickfortwittier {
+  font-size: 18px;
+}
+
 form {
   position: absolute;
   left: 10px;
-  top: 370px;
-  font-size: 20px;
+  top: 378px;
+  font-size: 21px;
 }
 
 .highlight {
@@ -50,7 +63,7 @@ form {
 </style>
   <body>
   <form>
-  <label><input type="radio" name="mode" value="eigen" checked> Eigenvector</label>
+  <label><input type="radio" name="mode" value="eigen" checked="checked"> Eigenvector</label>
   <label><input type="radio" name="mode" value="degree"> Degree</label>
   </form>
 <script>
@@ -65,6 +78,7 @@ var w = 1000,
     node,
     clip,
     graph,
+    graphData,
     metric = "eigen_cent",
     scale = 1
 
@@ -76,23 +90,25 @@ function showNodeDetails() {
     labels = [];
     labels.push("" + d['name'], "@" + d['screen_name'], "Following: " + d['friends_count'], "Followers: " + d['followers_count'], "Eigenvector: " + d['eigen_cent'].toFixed(4), "Degree: " + d['degree_cent'].toFixed(4))
     setDetailLabels(labels);
-    d3.selectAll("svg").selectAll("g").selectAll("circle")
+    graph.selectAll("circle")
       .transition()
         .duration(100)
         .attr("fill-opacity", 0.5);
-    d3.selectAll("svg").selectAll("g").selectAll("image")
+    graph.selectAll("image")
       .transition()
         .duration(100)
         .attr("style", "opacity: .5;");
-    d3.select(this).selectAll("image")
+    d3.select("." + d.screen_name).selectAll("image")
       .transition()
         .duration(100)
         .attr("style", "opacity: 1;");
-    d3.select(this).selectAll("circle")
+    d3.select("." + d.screen_name).selectAll("circle")
       .transition()
         .duration(100)
         .attr("class", "circle highlight")
         .attr("fill-opacity", 1);
+    d3.select(".id" + d.id)
+      .attr("fill", "#F00");
   }
 }
 
@@ -107,21 +123,23 @@ function setDetailLabels(labels) {
 
 function resetDetailLabels() {
   svg.selectAll(".nodetext").remove();
-  labels = ["Name: ", "Twitter: ", "Following: ", "Followers: ", "Eigenvector: ", "Degree: "];
+  labels = ["Hover on a circle", "to see details", "Following: ", "Followers: ", "Eigenvector: ", "Degree: "];
   setDetailLabels(labels);
 }
 
 function removeNodeDetails() {
   return function(d, i) {
     resetDetailLabels();
-    d3.selectAll("svg").selectAll("g").selectAll("circle")
+    graph.selectAll("circle")
       .transition()
         .attr("fill-opacity", 1);
-    d3.selectAll("svg").selectAll("g").selectAll("image")
+    graph.selectAll("image")
       .transition()
         .attr("style", "opacity: 1;");
-    d3.select(this).selectAll("circle")
+    d3.select("." + d.screen_name).selectAll("circle")
       .attr("class", "circle");
+    d3.select(".id" + d.id)
+      .attr("fill", "#000");
   }
 }
 
@@ -132,8 +150,9 @@ function followLink() {
 }
 
 function sizeBy(metric, scale) {
-    d3.selectAll("svg").selectAll("g").selectAll("rect")
+    graph.selectAll("rect")
       .transition()
+        .duration(2000)
         .attr("x", function(d) { return Math.sqrt(d[metric] * scale) * -75; })
         .attr("y", function(d) { return Math.sqrt(d[metric] * scale) * -75; })
         .attr("rx", 75)
@@ -141,16 +160,19 @@ function sizeBy(metric, scale) {
         .attr("width", function(d) { return Math.sqrt(d[metric] * scale) * 150; })
         .attr("height", function(d) { return Math.sqrt(d[metric] * scale) * 150; });
 
-    d3.selectAll("svg").selectAll("g").selectAll("circle")
+    graph.selectAll("circle")
       .transition()
+        .duration(2000)
         .attr("r", function(d) { return Math.sqrt(d[metric] * scale) * 90; });
 
-    d3.selectAll("svg").selectAll("g").selectAll("image")
+    graph.selectAll("image")
       .transition()
+        .duration(2000)
         .attr("x", function(d) { return Math.sqrt(d[metric] * scale) * -75; })
         .attr("y", function(d) { return Math.sqrt(d[metric] * scale) * -75; })
         .attr("width", function(d) { return Math.sqrt(d[metric] * scale) * 150; })
         .attr("height", function(d) { return Math.sqrt(d[metric] * scale) * 150; });
+    transitionRanking(metric);
 }
 
 d3.selectAll("input").on("change", function change() {
@@ -159,12 +181,12 @@ d3.selectAll("input").on("change", function change() {
 });
 
 svg = d3.select("body").append("svg")
-  .attr("width", w)
+  .attr("width", w + l - 25)
   .attr("height", h)
   .style("border", "3px solid #000");
 
 graph = svg.append("g")
-  .attr("transform", "translate(275,10)");
+  .attr("transform", "translate(" + l + ",10)");
 
 function drawGraph() {
   force = d3.layout.force()
@@ -175,6 +197,7 @@ function drawGraph() {
       .size([w-l, h]);
 
   d3.json("/static/smallgraph.json", function(json) {
+    graphData = json;
     force
         .nodes(json.nodes)
         .links(json.links)
@@ -220,6 +243,32 @@ function drawGraph() {
       .attr("height", function(d) { return Math.sqrt(d[metric] * scale) * 150; })
       .attr("clip-path", function(d) { return "url(#clip-" + d['screen_name'] + ")"; });
 
+    svg.append("svg:rect")
+      .attr("class", "rankingBG")
+      .attr("x", w + 20)
+      .attr("y", -2)
+      .attr("width", l)
+      .attr("height", h + 4)
+      .style("fill", "#ddd")
+      .style("stroke", "#000")
+      .style("stroke-width", 3);
+
+    svg.append("svg:text")
+      .attr("class", "rankingtitle")
+      .text("Ranking")
+      .attr("x", w + 88)
+      .attr("y", 33);
+
+    svg.selectAll(".rankingnum")
+      .data(d3.range(1,31))
+    .enter().append("svg:text")
+      .attr("class", "rankingnum")
+      .text(function(d) { return d + ":"; })
+      .attr("x", w + 50)
+      .attr("text-anchor","end")
+      .attr("y", function(d, i) { return i * 25 + 63; });
+
+    drawRanking(graphData);
   // For Static Graph, use this code.
   // setTimeout(function() {
   //       force.start();
@@ -245,16 +294,46 @@ function drawGraph() {
 }
 
 function redrawGraph() {
+  d3.selectAll("input")[0][0].checked = true;
+  d3.selectAll("input")[0][1].checked = false;
+  svg.selectAll(".rankingtext").remove();
+  svg.selectAll(".rankingnum").remove();
   link.remove();
   node.remove();
   drawGraph();
+}
+
+function compareVals(a, b) {
+  return a < b ? 1 : a == b ? 0 : -1;
+}
+
+function drawRanking(data) {
+  svg.selectAll(".rankingtext")
+      .data(data.nodes)
+    .enter().append("svg:text")
+      .sort(function (a, b) { return compareVals(a[metric], b[metric]); })
+      .attr("class", function(d) { return "rankingtext id" + d['id'];} )
+      .text(function(d, i) { return d['name']; })
+      .attr("x", w + 63)
+      .attr("y", function(d, i) { return i * 25 + 63; })
+      .on("mouseover", showNodeDetails())
+      .on("mouseout", removeNodeDetails())
+      .on("click", followLink());
+}
+
+function transitionRanking(metric) {
+  svg.selectAll(".rankingtext")
+    .sort(function (a, b) { return compareVals(a[metric], b[metric]); })
+    .transition()
+      .duration(2000)
+      .attr("y", function(d, i) { return i * 25 + 63; });  
 }
 
 function drawLegend() {
   svg.append("svg:rect")
     .attr("x", -20)
     .attr("y", -20)
-    .attr("width", 275)
+    .attr("width", l)
     .attr("height", 320)
     .attr("ry", 20)
     .style("fill", "#ddd")
@@ -276,7 +355,7 @@ function drawLegend() {
   svg.append("svg:rect")
     .attr("x", -20)
     .attr("y", 335)
-    .attr("width", 275)
+    .attr("width", l)
     .attr("height", 180)
     .attr("ry", 20)
     .style("fill", "#ddd")
@@ -297,7 +376,7 @@ function drawLegend() {
 
   svg.append("svg:text")
     .attr("class", "sizenote")
-    .text("my closest connections.")
+    .text("my most similar connections.")
     .attr("x", 10)
     .attr("y", 450);
 
@@ -316,7 +395,7 @@ function drawLegend() {
   svg.append("svg:rect")
     .attr("x", -20)
     .attr("y", 550)
-    .attr("width", 275)
+    .attr("width", l)
     .attr("height", 180)
     .attr("ry", 20)
     .style("fill", "#ddd")
@@ -334,6 +413,12 @@ function drawLegend() {
     .on("click", function(){
       redrawGraph();
     });
+
+  svg.append("svg:text")
+    .attr("class", "clickfortwittier")
+    .text("Click to see full Twitter profile")
+    .attr("x", 500)
+    .attr("y", h - 10);
 }
 
 drawGraph();
