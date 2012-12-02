@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<script src="http://d3js.org/d3.v2.min.js?2.9.3"></script>
+<script type="text/javascript" src="http://code.jquery.com/jquery-1.6.2.min.js"></script>
+<script type="text/javascript" src="/static/jquery.tipsy.js"></script>
+<link href="/static/tipsy.css" rel="stylesheet" type="text/css" />
+<link rel="shortcut icon" href="{{ url_for('static', filename='favicon.ico') }}">
+<style>
+
+.link {
+  stroke: #ccc;
+}
+
+.node text {
+  pointer-events: none;
+  font: 14px sans-serif;
+}
+
+
+
+</style>
+<body>
+<script>
+
+var width = 1200,
+    height = 650,
+    r = 25,
+    metric = "eigen_cent", // degree_cent
+    scale = 1 // 15 
+
+var color = d3.scale.category20();
+
+var svg = d3.select("body").append("svg")
+    .attr("width", width)
+    .attr("height", height)
+    .style("border", "3px solid #000");
+
+var force = d3.layout.force()
+    .gravity(0.06)
+    .distance(250)
+    .charge(-200)
+    .size([width, height]);
+
+d3.json("/static/smallgraph.json", function(json) {
+  force
+      .nodes(json.nodes)
+      .links(json.links)
+      .start();
+
+  // var stats = svg.append("svg:rect")
+  //   .attr("x", 10)
+  //   .attr("y", 10)
+  //   .attr("rx", 10)
+  //   .attr("ry", 10)
+  //   .attr("width", 200)
+  //   .attr("height", 400)
+  //   .attr("stroke", "#000")
+  //   .attr("stroke-width", 3)
+  //   .attr("fill", "#AAA");
+
+  // stats.append("text")
+  //   .attr("x", 20)
+  //   .attr("y", 20)
+  //   .attr("dy", "1em")
+  //   .style("text-anchor", "end")
+  //   .text("Stats");
+   
+
+  var link = svg.selectAll(".link")
+      .data(json.links)
+    .enter().append("line")
+      .attr("class", "link");
+
+  var node = svg.selectAll(".node")
+      .data(json.nodes)
+    .enter().append("g")
+      .attr("class", "node")
+      .call(force.drag);
+
+  var clip = node.append("defs").append("svg:clipPath")
+    .attr("id", "clip")
+    .append("svg:rect")
+    .attr("id", "clip-rect")
+    .attr("x", function(d) { return Math.sqrt(d[metric] * scale) * -75; })
+    .attr("y", function(d) { return Math.sqrt(d[metric] * scale) * -75; })
+    .attr("rx", 75)
+    .attr("ry", 75)
+    .attr("width", function(d) { return Math.sqrt(d[metric] * scale) * 150; })
+    .attr("height", function(d) { return Math.sqrt(d[metric] * scale) * 150; });
+
+  node.append("svg:circle")
+    .attr("r", function(d) { return Math.sqrt(d[metric] * scale) * 90; })
+    .style("fill", function(d) { return color(d.partition); })
+    .style("stroke", "#000")
+    .style("stroke-width", 1)
+    .attr("class","circle");
+
+  node.append("image")
+      .attr("xlink:href", function(d) { return d.profile_image_url; })
+      .attr("x", function(d) { return Math.sqrt(d[metric] * scale) * -75; })
+      .attr("y", function(d) { return Math.sqrt(d[metric] * scale) * -75; })
+      .attr("width", function(d) { return Math.sqrt(d[metric] * scale) * 150; })
+      .attr("height", function(d) { return Math.sqrt(d[metric] * scale) * 150; })
+      .attr("clip-path", "url(#clip)");
+
+  $('.node').tipsy({
+    gravity: 'n',
+    title: function() { return this.__data__.name; }
+  });
+
+  force.on("tick", function() {
+    link.attr("x1", function(d) { return d.source.x; })
+        .attr("y1", function(d) { return d.source.y; })
+        .attr("x2", function(d) { return d.target.x; })
+        .attr("y2", function(d) { return d.target.y; });
+
+    node.attr("transform", function(d) { return "translate(" + Math.max(r, Math.min(width - r, d.x)) + "," + Math.max(r, Math.min(height - r, d.y)) + ")"; });
+  });
+});
+
+</script>
