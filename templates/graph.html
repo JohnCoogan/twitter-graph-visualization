@@ -197,7 +197,7 @@ function drawGraph() {
       .friction(0)
       .size([w-l, h]);
 
-  d3.json("/static/smallgraph.json", function(json) {
+  d3.json("/static/graph.json", function(json) {
     graphData = json;
     force
         .nodes(json.nodes)

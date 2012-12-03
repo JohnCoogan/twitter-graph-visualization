@@ -71,3 +71,11 @@ TODO:
 *	Clean up program flow and make it modular.
 *	Add description of what's going on to front-end
 *	Create modular version with Twitter OAuth. (Look at rate-limits first)
+
+My Info:
+johncoogan
+30736937
+
+PG's Info:
+paulg
+183749519
