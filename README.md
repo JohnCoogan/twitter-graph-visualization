@@ -67,6 +67,7 @@ I chose to use a force-directed graph because I think it strikes a nice balance 
 
 TODO:
 -----
+*	Update with @PaulG's info.
 *	Clean up program flow and make it modular.
 *	Add description of what's going on to front-end
 *	Create modular version with Twitter OAuth. (Look at rate-limits first)
